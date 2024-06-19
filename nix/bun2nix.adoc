@@ -1,0 +1,296 @@
+= Hacking Dream2Nix to Work with Bun.js
+
+I love starting new projects to [.line-through]#torture myself# learn new technologies.
+I figured my own dev blog was a good place to experiment.
+Here's an incomplete list of the things I'm using this blog as an excuse for:
+
+- Svelte / SvelteKit (framework)
+- Nix (reproducibility)
+- Bun.js (drop-in replacement for Node.js)
+
+Why Bun? I really only have superficial reasons.
+It's new and shiny, and its mascot is cute.
+Node has always felt too clunky to me.
+Bun isn't as widely adopted, which means I actually have to understand what I'm doing instead of copying and pasting from tutorials.
+
+So there was my first problem: Nix doesn't really have community support for Bun.
+
+_But_ Nix does have support for Node, and Bun is supposed to be a drop-in, so I'm taking my chances and see how far I can go with it.
+If it doesn't pan out, it will probably be easy enough to jump ship. (...Right?)
+
+A quick googling session brought me to dream2nix.
+I immediately looked for alternatives; dream2nix has always seemed monstrous to me.
+A longer googling session brought me right back.
+So many other people use it, so maybe it wouldn't be so bad.
+All I needed to do was find where dream2nix called on Node / NPM  and replace it with bun.
+
+The documentation was intimidating (still is).
+It took me a few days to begin to understand what I was looking at.
+There are lengthy docs that explain the options, but frankly I didn't scroll far enough to notice.
+
+What I did instead was trawl through the source code, which I think is a rite of passage for anyone learning anything Nix.
+It was painful, but it helped me understand the links between all the dream2nix modules.
+
+TIP: The `interface.nix` files were helpful because they usually had an attribute called `modules` or `imports`.
+
+// TODO insert dependency graph here
+
+The only place I found an NPM call was in the `nodejs-granular-v3` module.
+(I'm using v3 where available, but there is also just `nodejs-granular`.)
+There was already an option called `buildScript`, which defaults to `npm run build`.
+So all I had to do was throw a line in somewhere like
+
+```
+dream2nix.nodejs-granular-v3.buildScript = "bun run build";
+```
+
+Considering I still didn't know how to use dream2nix, it was a whole other matter figuring out where that "somewhere" was.
+In `examples/packages/single-language`, there are quite a few Node examples, but I found `nodejs-project` the most helpful.
+In `default.nix` there is
+
+```
+nodejs-granular-v3 = {
+  buildScript = ''
+    tsc ./app.ts
+    mv app.js app.js.tmp
+    echo "#!${config.deps.nodejs}/bin/node" > app.js
+    cat app.js.tmp >> app.js
+    chmod +x ./app.js
+    patchShebangs .
+  '';
+};
+```
+
+I didn't really want to create a `default.nix` because I was already overwhelmed by how many files I had, but I didn't want to spend more time than I needed to on this little detour.
+I took a look at the examples again but wasn't sure if I should use the setup in `repo-with-packages-flake` or one in `packages/single-language`.
+
+The only difference appeared to be whether `importPackages` or `evalModules` was used.
+Because I didn't have a package to use yet, I decided on the latter.
+This is the example `default.nix` I was working with (in `packages/single-language/nodejs-project`):
+
+```
+{
+  lib,
+  config,
+  dream2nix,
+  ...
+}: {
+  imports = [
+    dream2nix.modules.dream2nix.nodejs-package-json-v3
+    dream2nix.modules.dream2nix.nodejs-granular-v3
+  ];
+
+  deps = {nixpkgs, ...}: {
+    inherit
+      (nixpkgs)
+      gnugrep
+      stdenv
+      ;
+  };
+
+  nodejs-granular-v3 = {
+    buildScript = ''
+      tsc ./app.ts
+      mv app.js app.js.tmp
+      echo "#!${config.deps.nodejs}/bin/node" > app.js
+      cat app.js.tmp >> app.js
+      chmod +x ./app.js
+      patchShebangs .
+    '';
+  };
+
+  name = lib.mkForce "app";
+  version = lib.mkForce "1.0.0";
+
+  mkDerivation = {
+    src = lib.cleanSource ./.;
+    checkPhase = ''
+      ./app.js | ${config.deps.gnugrep}/bin/grep -q "Hello, World!"
+    '';
+    doCheck = true;
+  };
+}
+```
+
+I changed the `deps` option to
+
+```
+deps = {nixpkgs, ...}: {
+  inherit
+    (nixpkgs)
+    bun
+    ;
+};
+```
+
+and `nodejs-granular-v3` to
+
+```
+nodejs-granular-v3 = {
+  buildScript = ''
+    bun run -b dev
+  '';
+};
+```
+
+I also deleted `checkPhase` and `doCheck` in `mkDerivation` because I didn't need that.
+
+The next step was to include my new `default.nix` in my flake.
+My flake uses flake-parts as a template because I liked the fact that it iterates through each system for me.
+This meant that I shouldn't refer to `system` when defining my package, but everything else inside evalModules is the same as in the example flake in `packages/single-language/nodejs-project`.
+Here's the snippet from the example flake:
+
+```
+packages.${system}.default = dream2nix.lib.evalModules {
+  packageSets.nixpkgs = inputs.dream2nix.inputs.nixpkgs.legacyPackages.${system};
+  modules = [
+    ./default.nix
+    {
+      paths.projectRoot = ./.;
+      # can be changed to ".git" or "flake.nix" to get rid of .project-root
+      paths.projectRootFile = "flake.nix";
+      paths.package = ./.;
+    }
+  ];
+};
+```
+
+Now I could build a package with `nix build` (supposedly).
+Here's what I got with `nix build`:
+
+```
+error: The lock file ./lock.json
+  for drv-parts module 'capyblogger' is missing.
+
+To create or update the lock file, run:
+
+  bash -c $(nix-build /nix/store/2qd0sqqp52rmx13rcjfq1bxxi7fcs7xv-refresh.drv --no-link)/bin/refresh
+
+Alternatively `nix run` the .lock attribute of your package.
+```
+
+Oops. Luckily, there is also the dream2nix module `nodejs-package-lock-v3`.
+I added in my Bun lockfile in `default.nix` like this:
+
+```
+nodejs-package-lock-v3 = {
+    packageLockFile = "${config.mkDerivation.src}/bun.lockb";
+};
+```
+
+This was the output when I ran it again:
+
+```
+error: the contents of the file '/nix/store/55mzcaxk53nq6ks5cbjn8rb0llhly3ig-source/bun.lockb' cannot be represented as a Nix string
+```
+
+Great.
+I didn't want to spend time trying to write an actual module for bun2nix, so I went looking through dream2nix to see if anyone mentioned anything.
+I knew no one had (otherwise I wouldn't have bothered trying to chronicle my efforts), so eventually I turned to Bun's docs for answers.
+After taking a look at their section on the lockfile, I was excited to find that Bun supported the creation of a Yarn lockfile as well.
+
+I created a `bunfig.toml` and put the following lines in it:
+
+```
+[install.lockfile]
+print = "yarn"
+```
+
+Then, I changed `"${config.mkDerivation.src}/bun.lockb"` to `"${config.mkDerivation.src}/yarn.lock"` in my `default.nix`.
+After running a cursory `nix build`, I received this error:
+`error: [json.exception.parse_error.101] parse error at line 1, column 1: syntax error while parsing value - invalid literal; last read: '#'`
+
+Dream2nix couldn't parse the yarn lockfile, stuck on a comment.
+I suspected this could have something to do with the fact that dream2nix.nodejs-package-lock-v3 parses the lockfile as a JSON in particular.
+I looked at the GitHub repo for any fixes.
+There was https://github.com/nix-community/dream2nix/issues/393[an issue] stating an issue with the yarn translator.
+I couldn't find said translator to figure out how I might fix it (or at the very least, suggest some sort of fix), and it was possible this was an issue in an earlier version.
+
+// TODO add translator found here: src/subsystems/nodejs/translators/yarn-lock/parser.nix
+
+I found an option for `nodejs-package-json-v3` called `deps.npm`, which is the npm package used to build the lock file.
+To find out what exactly this meant, it was back to the source code for me.
+
+// TODO finish above paragraph about package json
+
+To translate my yarn.lock into a package-json.lock, I decided to use https://github.com/imsnif/synp[synp].
+At first I tried to make a module in my project root called `synp.nix` and have d2n evaluate it in the flake using the same setup I had for my default output, but I kept getting this when I ran `nix build .#synp`: 
+
+```
+error: builder for '/nix/store/9xqkq67m56ap4nvjmi0xmq39sybwvl46-synp-1.9.10.drv' failed to produce output path for output 'out' at '/nix/store/66jlps2g6f9dnl25mfab25imkr95x90g-synp-1.9.10'
+```
+
+After trawling unsuccessfully through the forums for an answer (because the forums were talking about more complex situations than creating a package derivation), I eventually returned to my old tried and true: the source code.
+To be specific, the example code in `repo-with-packages-flake/flake.nix`.
+
+Here, the flake used `dream2nix.lib.importPackages`, which is described to add all packages in `./packages/<name>` to the flake outputs.
+So I dumped my `synp.nix` into `./packages/synp` and renamed it to `default.nix`.
+Then, I removed the synp flake output and added the `importPackages` call from the example like this:
+
+```
+packages = {
+  default = ...
+  dream2nix.lib.importPackages {
+    projectRoot = ./.;
+    projectRootFile = "flake.nix";
+    packagesDir = ./packages;
+    packageSets.nixpkgs = dream2nix.inputs.nixpkgs.legacyPackages.${system};
+  };
+};
+```
+
+Note that I did not assign the import to any specific package name because that is what the function is supposed to do for me.
+
+I kept running up against `error: syntax error, unexpected '{', expecting '.' or '='` in the line with `dream2nix.lib.importPackages {`.
+Was the parser unhappy that I had mixed a function call and an output at the same level?
+To fix this, I put the `default.nix` for my default package (capyblogger) in `packages/default`.
+So the structure for the packages directory looked like this:
+
+```
+packages
+|_default
+  |_default.nix
+|_synp
+  |_default.nix
+```
+
+Then I deleted the default package in the flake so that the flake packages output was just the call to `importPackages` like this:
+
+```
+packages = dream2nix.lib.importPackages {
+  projectRoot = ./.;
+  projectRootFile = "flake.nix";
+  packagesDir = ./packages;
+  packageSets.nixpkgs = dream2nix.inputs.nixpkgs.legacyPackages.${system};
+};
+```
+
+And I still got the same `failed to produce output path for output 'out'` error as before.
+So I went to Google again and found https://discourse.nixos.org/t/all-derivations-fail-builder-for-failed-to-produce-output-path-for-output-out-at/30217/2?u=adobo[this answer] after finding the same error in the initial post and skipping past it entirely.
+With this newfound, potentially irrelevant solution, I added `preBuild = ''touch $out'';` to `synp/default.nix` inside `mkDerivation`.
+
+It finally worked! I finally was able to build synp.
+To check that it was okay to kick the default package into a subdirectory like that, I ran `nix flake show`, which gave me the following output:
+
+```
+├───devShells
+│   └───x86_64-darwin
+│       └───default: development environment 'nix-shell'
+└───packages
+    └───x86_64-darwin
+        ├───default: package 'capyblogger'
+        └───synp: package 'synp'
+```
+
+Finally, I could run `nix run .#synp -- --source-file ./yarn.lock`!
+Except the output of building synp was not a directory.
+Frustrated, I just ran `bunx synp --source-file ./yarn.lock`.
+Which created the `package-lock.json` I so desperately needed with no hassle.
+I'm not crying at all.
+Also I deleted the synp package because it was useless.
+
+Then I ran `nix build` and got `error: getting status of '/nix/store/ff8fx5c45rrzyr77jxyq3abgvk12ffw3-source/package.json': No such file or directory`.
+After extensive digging, I somehow stumbled across the fact that I had set the default package's `mkDerivation.src` to `./.`, which was the directory that only held `default.nix`.
+I set `src = config.paths.projectRoot;`, and `nix build` ran almost successfully!
+
+It errors out with 'ERR_MODULE_NOT_FOUND' while trying to install the `vite` dependency for `@sveltejs/kit`.

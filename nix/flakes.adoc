@@ -1,0 +1,63 @@
+= Tripping over Nix: What I've Learned About Flakes
+Evangeline Barruel
+
+At first, I just occasionally saw the name "Nix" thrown around. This person was talking about how it made it so easy to upgrade their OS. That person lamented how many hours it took them to get the output they wanted. They both loved it.
+
+I kept scrolling. But then it kept popping up in my feeds, when I was looking for troubleshooting help on forums, and when I was peeking at the source code for tools I was using. And I started looking into it, and it seemed pretty cool.
+
+It also seemed confusing, with lots of buzzwords like "reproducible" and "declarative." Which I didn't have a lot of knowledge or experience in. But it was shiny and new to me, and my mind was stuck on it.
+
+== So, what **is** Nix?
+
+Its name is used for quite a few products in the same ecosystem. To me, first and foremost, Nix is a *functional package manager*.
+
+"Functional" means that when you're building a package or program, the output you get should be the same as long as you give it the same inputs. Ideally, a program that builds on your computer should build the same way on your friend's computer. If it doesn't, then you probably have different dependencies (or versions) installed. The build isn't very reproducible.
+
+One way to solve this is using container images such as Docker or Podman. You ship the software with that stripped down VM, which means whoever gets it should be able to run it in the same environment as you. However, https://blog.replit.com/nix-vs-docker[there can be differences even between two Docker images you've built on your own machine].
+
+This is where Nix comes into play. It [.line-through]#makes# lets you define everything that goes into the program (dependencies and versions, environment variables, etc.) declaratively and explicitly. Then Nix will sandbox the process while building, ensuring that there isn't something on your computer that makes it build differently than it does on your friend's (aka it's hermetic).
+
+The package manager part exists hand in hand with the default package registry, nixpkgs. Due to the unique way Nix manages packages (with a hash so that there are no collisions even between different versions of the same package aka derivations) and the hermetic building process, it is much easier to avoid dependency hell. By the way, you can test drive a package that you can later tell Nix to garbage collect, in case you decide you don't want it to exist permanently on your machine.
+
+Taking these reproducible and declarative and hermetic principles, Nix has also been extended to mean the language that is used to specify these inputs and outputs. It is also a Linux operating system or configuration management system (CMS) with cool features like atomic upgrades or easy version rollbacks. (However, I'm emotionally attached to my early 2015 Macbook Pro, Old Bessie, and the way I have it set up, so I don't have any real opinions on NixOS currently.)
+
+== Okay... How do you use Nix?
+
+It depends. There seems to be a persistent divide between the "old Nix way" and the "new Nix way." I chose the new way, complete with experimental commands and improved attempts to standardize. This means I'm using flakes. (There is contention over flakes, but that's a whole other can of worms.)
+
+Nix flakes are a way to manage dependencies for a project. They are tied to git trees. They also have four top-level attributes:
+
+* description: so humans know what it's for
+* inputs: so Nix knows the flake's dependencies (likely nixpkgs, et al)
+* outputs: so Nix knows what to make out of those dependencies
+* nixConfig: in case you want to extend nix.conf
+
+I tend to use flakes to define the devshells primarily. I haven't gotten far enough in my projects involving Nix to get use out of the package or application outputs, although I do still define the packages, for some reason. (Frankly, I've only used this flake for a Node app so far, and I don't see why I'd use Nix to run index.html.) I also haven't used overlays because I don't quite understand them except as a way to somehow override attributes at the top-level (or the highest level you'd like to override stuff at, I guess).
+
+Ideally, these dev environments would be isolated to ensure all the right dependencies and only the right dependencies are accessed. However, NPM makes this extremely difficult. So my dev shell is actually an impure environment (I think). I'll fix it later, probably.
+
+=== Systems
+
+Outputs in Nix flakes must specify which system they belong to. I configured my first flake using eachSystem in flake-utils by numtide to iterate over my list of supported systems, as seen in the snippet below.
+
+[source,nix]
+----
+inputs = { ... };
+
+outputs = inputs@{ self, flake-utils, ... }:
+    flake-utils.lib.eachSystem [
+        "x86_64-darwin"   # MacOS (Intel)
+        "aarch64-linux"   # Raspberry Pi OS
+    ] (system:
+        let pkgs = nixpkgs.legacyPackages.${system};
+        in { ... }
+    );
+----
+
+NOTE: Flake-utils can be specified in the inputs, but if it is not, it will be pulled from Nix's default flake registry.
+
+I chose eachSystem over eachDefaultSystem so that I could explicitly say which systems I was targeting. If it worked on other systems, then it was a happy coincidence; if not, I won't be responsible.
+
+=== Dependencies
+
+My primary goal for using flakes was (and still is) to have a reproducible dev environment.

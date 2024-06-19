@@ -1,0 +1,14 @@
+However, I've since found a third-party flake I'd rather use, flake-parts by hercules-ci. It uses Nix modules to be able to separate out the per-system and system-agnostic logic for flakes, which should make your flakes composable.
+
+[source,nix]
+----
+outputs = inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [ ... ];                        # modules
+      systems = [ "x86_64-darwin" ];
+      perSystem = { config, self', inputs', pkgs, system, ... }: { ...  };
+      flake = { ... };                          # system-agnostic
+    };
+----
+
+I haven't used Nix modules yet, but I think in the future I'll write modules that can throw together dev environments for things I use often.
