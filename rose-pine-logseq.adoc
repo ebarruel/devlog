@@ -1,5 +1,6 @@
 = Baby's First Public Package: Rosé Pine for LogSeq
-Evangeline Barruel
+Evangeline Barruel <empbarruel@gmail.com>
+2024-06-19
 :keywords: logseq, rose pine, css
 
 Everyone knows the most important part of software development is not the software itself, or the tools you use, or whatever else someone outside the field might believe.
