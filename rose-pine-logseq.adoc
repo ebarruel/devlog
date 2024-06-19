@@ -69,6 +69,9 @@ so I chose to change the colors in the settings (which was thankfully provided).
 Now I have decided that I have beef with CSS Frameworks for plug-n-play tools because what do you mean I can't override your defaults with my own theme???
 ====
 
+As of writing this post, I've released https://github.com/ebarruel/logseq-rose-pine-theme/releases/tag/v1.1.0[version 1.1.0].
+You can find it listed as a community app theme on https://rosepinetheme.com/themes/[Rosé Pine's site] or in the LogSeq marketplace.
+
 [discrete]
 == The takeaways
 
