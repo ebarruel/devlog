@@ -1,8 +1,0 @@
-= Capyblogger: Yet Another Static Site Generator
-Evangeline Barruel
-
-There are a billion and more static site generators --- more specifically, static blog generators. But I wanted much more finegrain control over my blog, particularly text formatting. So Capyblogger is pretty much centered around the AsciiDoc format because it allows me the most formatting flexibility without requiring more than a text editor.
-
-Unfortunately AsciiDoctor's HTML conversion output is...verbose, to say the least. Luckily Jakub Jirutka has created https://github.com/jirutka/asciidoctor-html5s[a more semantic converter for use]. (Although it hasn't been touched in a while, which worries me a little bit.) It even includes a special JS API in case you want to use it with Node (or in my case, Bun) instead of Ruby. At least, I'm hoping it works with Bun, https://techsparx.com/nodejs/bun/test-2022-08-12.html[even though as of last year it didn't].
-
-I wanted Capyblogger available for installation with Nix, which for me means using flakes and flake-parts in particular.
