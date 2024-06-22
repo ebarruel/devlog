@@ -22,10 +22,26 @@ One part of my theme that is largely untested is the CodeMirror aspects.
 I haven't quite had the opportunity to battle test it.
 
 The part of the theme that proved the most difficult to get right was the selection element.
-I'm not entirely sure what fixed the selection background-color for the regular blocks --
-I personally believe I just needed to somehow clear the cache --
-but I found the solution for the CodeMirror widget by searching through LogSeq's source repo.
-On lines 103–109 in https://github.com/logseq/logseq/blob/d8c6ca264bdf9a6a0f03c46dbf3509210367624a/resources/css/codemirror.lsradix.css[`resources/css/codemirror.lsradix.css`], I found the following code chunk:
+In regular blocks, the styles on lines 140–148 in https://github.com/logseq/logseq/blob/d8c6ca264bdf9a6a0f03c46dbf3509210367624a/src/main/frontend/common.css#L4[`common.css`] do not have access to the variables I set in `html[data-theme=dark/light]`,
+so it makes sense that the selection styles were never actually set...somewhat.
+(Everything else seems to work all right, but that's beside the point.)
+To fix this, I just plopped the following code into my theme:
+
+[source, css]
+----
+html:not(html[data-color]),
+html[data-theme=light][data-color='logseq'],
+html[data-theme=dark][data-color='logseq'],
+html[data-color='none'] {
+    ::selection, ::-moz-selection {
+        color: var(--ls-selection-text-color);
+        background-color: var(--ls-selection-background-color);
+    }
+}
+----
+
+I found the solution for the CodeMirror widget by searching through LogSeq's source repo.
+On lines 103–109 in https://github.com/logseq/logseq/blob/d8c6ca264bdf9a6a0f03c46dbf3509210367624a/resources/css/codemirror.lsradix.css[`codemirror.lsradix.css`], I found the following code chunk:
 
 [source, css]
 ----
@@ -70,9 +86,6 @@ so I chose to change the colors in the settings (which was thankfully provided).
 Now I have decided that I have beef with CSS Frameworks for plug-n-play tools because what do you mean I can't override your defaults with my own theme???
 ====
 
-As of writing this post, I've released https://github.com/ebarruel/logseq-rose-pine-theme/releases/tag/v1.1.0[version 1.1.0].
-You can find it listed as a community app theme on https://rosepinetheme.com/themes/[Rosé Pine's site] or in the LogSeq marketplace.
-
 [discrete]
 == The takeaways
 
@@ -88,3 +101,6 @@ But that day is not now,
 especially considering the LogSeq theme has been working on the new database branch
 that seems pretty much a rewrite of the codebase.
 It may be more beneficial to wait until things have settled.
+
+NOTE: As of writing this post, I've released https://github.com/ebarruel/logseq-rose-pine-theme/releases/tag/v1.1.1[version 1.1.1].
+You can find it listed as a community app theme on https://rosepinetheme.com/themes/[Rosé Pine's site] or in the LogSeq marketplace.
