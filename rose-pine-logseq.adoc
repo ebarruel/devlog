@@ -1,4 +1,4 @@
-= Baby's First Public Package: Rosé Pine for LogSeq
+= Baby\'s First Public Package: Rosé Pine for LogSeq
 Evangeline Barruel <empbarruel@gmail.com>
 2024-06-22
 :keywords: logseq, rose pine, css
