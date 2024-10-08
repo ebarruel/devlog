@@ -1,0 +1,381 @@
+= Capyblogger: Yet Another Static Site Generator
+Evangeline Barruel <empbarruel@gmail.com>
+2024-07-04
+:keywords: svelte, sveltekit, static site generator, asciidoctor, bun.js
+
+There are a billion and more static site generators --
+more specifically, static blog generators.
+But I wanted much more fine-grained control over my blog,
+and I liked the idea of being able to add whatever features I wanted.
+Here's an intro to my static site generator: Capyblogger.
+
+== The Stack
+
+=== The Framework
+
+I'm not brave enough to use vanilla JS, not when I can pick out a framework
+that supposedly takes care of all of the really difficult stuff for me.
+I'm also not masochistic enough to submit myself to React again.
+I had to use it for my senior project,
+and if I can help it,
+I never will again.
+
+Lucky for me, I ran into https://svelte.dev/[Svelte]
+while setting out to build a federated novel reader.
+It's fast, it's straightforward,
+and it doesn't leave me one update behind
+because it has decided there's not enough change in the virtual DOM to update the real one.
+
+****
+In a project I had to add a keyboard to the screen,
+and the input text bar was always one character behind,
+no matter what I did to get the app to re-render.
+I ended up leaving it as-is
+because I didn't want to have to rip out the guts to get something so simple to work.
+****
+
+Svelte feels very lightweight and is easy for me to follow.
+I'm not a big fan of JSX,
+and Svelte's templating language just makes sense to me.
+Plus, the compiler makes me feel like I'm still connected to
+my low-level compiled language roots.
+
+=== The Format
+
+I could've jumped on the bandwagon and
+just picked some flavor of Markdown to write my posts in.
+In fact, I probably would've been able to take advantage of someone else's project.
+But I wanted something more consistent than Markdown,
+and I wanted to make sure it was capable of any formatting I could want in the future.
+Enter the Asciidoc format:
+powerful formatting from any plaintext editor.
+
+Asciidoc was meant to be a
+https://docs.asciidoctor.org/asciidoc/latest/asciidoc-vs-markdown/#graduating-to-asciidoc[
+    "plain-text alternative to the DocBook XML schema"],
+which means it's capable of way more than I will probably ever need for this blog.
+And that's what I wanted,
+lower chances of having to hunt online for a Markdown extension or,
+God forbid, another flavor if I want to add in more capability.
+Also having to keep in mind whether the parser can handle my Frankenstein format...
+
+I'd rather go with the format that's already as expressive as I need
+and is meant to be extensible if I want.
+
+Asciidoc ships with an in-house processing tool: https://asciidoctor.org/[Asciidoctor].
+It's written in Ruby, a language I'm not familiar with
+and am not comfortable adding to my stack.
+But it also has been officially ported to Java and JavaScript,
+which made it almost too easy to pop into Capyblogger.
+
+The issue with Asciidoctor that I have been running into is that
+importing it causes a "chunk is too big" warning when being processed by Vite.
+I haven't bothered doing anything about it, however,
+because it's at most a few hundred kB?
+I think my app can survive that hit to memory and performance.
+
+=== The Runtime
+
+Node is practically a no-brainer for a Javascript runtime.
+Except I associate it with my senior project,
+which was painfully slow when spinning up the dev server.
+I was not impressed.
+So when https://bun.sh/[Bun] came around as a Node drop-in,
+shiny, new, and touting a very cute little mascot,
+I immediately jumped the Node ship,
+even if realistically Node was not the actual source of my problems.
+
+== The Features
+
+
+
+== Development
+
+I did run into a number of problems during development,
+but I was able to move quickly past them
+once I just sat down and focused on moving forward.
+I think I managed to learn a lot about web development in the 8 months
+it took me to get Capyblogger to the state it's in today.
+(Seems like a long time,
+but I had very little experience with web dev on my own when I started out.)
+
+Overall, I'm pretty satisfied with what I have.
+I think it's a good foundation for a personal project.
+And I'm pretty proud of how I tackled the problems I encountered.
+
+=== Problem {counter:dev}: Nix
+
+I wanted to use https://nixos.org/[Nix] to ensure reproducibility,
+both in my dev shell and my builds.
+I was trying to repurpose existing Node/NPM tooling,
+but in this case, Bun was _not_ a great drop-in replacement.
+For example, https://github.com/nix-community/dream2nix[dream2nix] parses package-lock.json
+to discover what packages it needs to pull from nixpkgs.
+Bun only has the option to create a yarn.lock alongside its binary lockfile,
+so I needed to run https://github.com/imsnif/synp[synp] on that yarn.lock
+to convert it to a package-lock.json.
+Not the worst thing, but also not what made me give up on a Nix setup for the time being.
+
+Nixpkgs doesn't contain https://vitejs.dev/[Vite],
+so I will need to work on packaging it myself.
+However, I am hesitant to become a maintainer in the Nix ecosystem,
+considering all of the https://lwn.net/Articles/970824/[tension in the community] right now.
+In favor of waiting to see how the dust settles,
+I have set aside Nix reproducibility for now.
+
+=== Problem {counter:dev}: Dev Environment
+
+There's something broken in my dev environment that causes
+`ReferenceError [Error]: Request is not defined` or
+`ReferenceError [Error]: fetch is not defined`.
+Currently my quick and dirty fix is to run `nvm use --lts`
+as suggested in https://github.com/sveltejs/kit/issues/11789[this thread].
+I should probably define a proper Node dependency in my Nix flake.
+
+[NOTE]
+====
+I have since added Node v20 in my Nix flake.
+I have not run into any problems like this since.
+====
+
+=== Problem {counter:dev}: Accessing File Content
+
+My original plan was to ship my blog with all the posts as part of the codebase.
+Because I wanted to keep hosting costs down as much as possible,
+I was hoping to use a free static hosting service such as GitHub or Codeberg Pages.
+Due to a misconception on my end,
+I assumed that "static" meant I needed everything in capyblogger to be self contained
+and that I wouldn't be able to fetch external resources.
+So I was trying get away without having to make proper HTTP requests to a server.
+Much to my dismay, having the files available in the codebase does not guarantee
+they will be available to the app in production or in the same place you expect.
+
+==== Glob Import
+
+I initially tried to use fs:readdir to read in the files from the filesystem.
+However, the filesystem does not exist in the browser the same way it does in your worktree,
+especially not with Vite and Svelte doing their magic to make your bundle
+as small and modular as possible.
+
+Then I pivoted to using Vite's glob import.
+
+./src/routes/blog/+page.ts
+[, typescript]
+----
+export const load: PageLoad = (() => {
+    const processor = Processor();
+    const files = import.meta.glob('$content/**/*.adoc', {
+        query: '?raw',
+        import: 'default'
+    });
+    const titles: string[] = [];
+
+    // read all the files in the current directory
+    for (const file in files) {
+        files[file]().then((content) => {
+            const adoc: Document = processor.load(content as string);
+            titles.push(adoc.getTitle() as string);
+        })
+    }
+
+    return {
+        files: files,
+        titles: titles
+    };
+});
+----
+
+This made it possible to import the files asynchronously.
+However, the asynchrony meant that the posts were not always available right away.
+Plus, the posts were loaded every time with the page that needed them,
+which meant that they were not even loaded 100% of the time after that.
+
+I attempted to fix this by loading all of the post files into a
+https://svelte.dev/docs/svelte-store[Svelte store],
+which is how Svelte handles reactive state.
+I created a writable store and set that to page data like what's returned above,
+solving the issue of the constant asset reloading
+but not that of the initial lack of loaded content.
+
+In trying to fix this bug,
+I went back and forth between having synchronous and asynchronous stores,
+the latter coming from
+https://github.com/square/svelte-store[Square's extension of native Svelte stores].
+For example, my initial attempt looked like the following exported function:
+
+./src/lib/stores/DocStore.ts
+[, typescript]
+----
+const loadDocs = async () => {
+    const files = import.meta.glob('$content/**/*.adoc', {
+		query: '?raw',
+		import: 'default',
+	});
+	const docs: Document[] = [];
+
+	// process all the files in the current directory
+	for (const file in files) {
+		files[file]().then((content) => {
+			const adoc: Document = processor.load(content as string);
+            ...
+			docs.push(adoc);
+		});
+	}
+
+	return docs.sort((a, b) => 
+		-(Date.parse(a.getRevdate() as string) - Date.parse(b.getRevdate() as string))
+	);
+}
+
+const docs = asyncWritable<Stores, Document[]>([], async () => loadDocs());
+----
+
+Still didn't work.
+I tried to make sure that the files were loaded at the same time
+as the top-level global layout as below,
+but this didn't quite fix the issue either.
+
+src/routes/+layout.svelte
+[, typescript]
+----
+import { onMount } from 'svelte';
+import { get } from 'svelte/store';
+import docs from '$lib/stores/DocStore';
+
+onMount(() => {
+    get(docs);
+})
+----
+
+Eventually I resigned myself to the fact that the posts were likely going to lag
+when launching the app in dev mode no matter what,
+but I also resolved not to allow that issue in production.
+Enter the static part of the site generator.
+
+==== Adapting Statically
+
+Switching to a static adapter meant that I could build the site on my machine
+and know how it would look and behave when deployed.
+To accomplish this, my first order of business was to change the adapter imported
+in `svelte.config.js` from `'svelte-adapter-bun'` to `'@sveltejs/adapter-static'`.
+Then in `src/routes/+layout.ts` I set `export const prerender = true;`.
+
+Prerendering dynamic blog post routes with Svelte's static adapter means
+generating https://kit.svelte.dev/docs/page-options#entries[entries].
+At first, I tried to generate the entries from the slugs
+I put in the post docs' metadata.
+The fault in this approach was that the app was not fetching the docs
+before prerendering the dynamic routes,
+leading to "fetch is not defined" errors and 404s on those pages.
+Currently as a hotfix I fetch the docs twice:
+once to prerender the routes and twice to actually process them.
+It's not optimal, but it works for now.
+
+With that, here's how I currently generate dynamic routes:
+
+.src/routes/blog/[slug]/+page.ts
+----
+export const entries: EntryGenerator = async () => {
+	const version = await (await fetch(`${cdnMetaUrl}/resolved`))
+		.json()
+		.then((res) => res.version as string);
+	const docnames = await (await fetch(`${cdnMetaUrl}@${version}`))
+		.json()
+		.then((res) =>
+			res.files
+				.filter((file: JsDelivrFile) => file.name.includes('.adoc'))
+				.map((file: JsDelivrFile) => file.name)
+		);
+	const slugs: string[] = [];
+
+	for (const docname of docnames) {
+		slugs.push({ slug: docname.replace('.adoc', '') });
+	}
+
+	return slugs;
+};
+----
+
+==== See the End(point) aka CDN
+
+You'll notice in the code block above that I am fetching the doc names
+from a CDN instead of using Vite's glob import as I explained before.
+
+After switching to the static adapter,
+I realized that keeping my content with my code
+no longer had the advantages that I thought it would.
+I thought it would simplify my releases,
+and I thought it was necessary to make sure I could deploy
+on a static site host like GitHub or Codeberg Pages.
+But I was stuck navigating the murky world
+of file access with no defined filesystem,
+and it was async and still working with the adapter
+that actually fulfilled my static needs.
+That meant I had more options than I thought for handling my files.
+
+At first I considered going in the complete opposite direction.
+Maybe my intentions behind my approach were wrong,
+and the "proper" way to handle everything would be to scale up
+and have my content on an actual server and write proper business logic
+for industry beloved client-server communication.
+
+I was dreading this.
+It would take what should have been a quick little project for me
+and snowball into what is easily a full time product.
+When researching what exactly a server and client would involve,
+I remembered that CDNs exist.
+They ended up fitting in really nicely with the approach I was already taking,
+which was a welcome surprise.
+
+. I was already importing the files asynchronously,
+so I could keep using `fetch` to use a CDN.
+. The CDN would provide a reliable server endpoint for me to use
+without having to keep fussing with server endpoints in my own codebase.
+. With a CDN, I would be able to separate my content from my app,
+which was pretty desirable when taking versioning into account.
+
+I decided to use JSDelivr as my CDN,
+using the https://www.jsdelivr.com/?docs=gh[GitHub API].
+To ensure I always have the latest content I've released,
+I actually programmatically fetch the latest version
+and use that to fetch the list of post documents.
+Then I loop through the list to get the content of the docs
+and load them into a store available to the rest of the app.
+
+IMPORTANT: The store is still not available when enumerating dynamic routes,
+and launching the app in dev mode still requires some time to load the docs,
+though not much.
+
+=== Problem {counter:dev}: Scoping Imported CSS Styles
+
+==== PostCSS atImport Plugin
+
+==== Styling {@html ...} Block
+
+== Deployment
+
+Currently, this site is hosted on Codeberg Pages on a branch of the capyblogger repo.
+My process for updating the site is manual
+because I've been focusing on capyblogger functionality and not continuous deployment.
+It goes a little something like this, which you can find in the
+https://codeberg.org/ebarruel/capyblogger/src/branch/main#_deploying[repo README] as well:
+
+. Build the site: `bun run build`
+. Switch to pages branch: `git switch pages`
+. Clean up old files to keep prevent side effects:
+`git ls | grep -v -e .domains -e .gitignore | xargs rm`
+. Repopulate repo with new build: `cp -R build/ .`
+. Commit and push changes
+
+It was my first time actually deploying something myself,
+so I struggled quite a bit getting it to work.
+
+=== Problem {counter:deploy}: What Do I Actually Put in the Pages Branch?
+
+=== Problem {counter:deploy}: DNS Woes
+
+////
+Unfortunately AsciiDoctor's HTML conversion output is...verbose, to say the least. Luckily Jakub Jirutka has created https://github.com/jirutka/asciidoctor-html5s[a more semantic converter for use]. (Although it hasn't been touched in a while, which worries me a little bit.) It even includes a special JS API in case you want to use it with Node (or in my case, Bun) instead of Ruby. At least, I'm hoping it works with Bun, https://techsparx.com/nodejs/bun/test-2022-08-12.html[even though as of last year it didn't].
+
+I wanted Capyblogger available for installation with Nix, which for me means using flakes and flake-parts in particular.
+////
