@@ -348,9 +348,99 @@ though not much.
 
 === Problem {counter:dev}: Scoping Imported CSS Styles
 
-==== PostCSS atImport Plugin
+I had an issue with the CSS styles where styles imported from other stylesheets
+were applied globally rather than scoped to their component.
+This meant that when I imported styles specifically for my blog posts,
+they were also being applied to the general site layout.
+Scoped CSS styling is an advertised feature of Svelte,
+so this was frustrating to me.
+
+To set the scene, initially I imported the stylesheets into `<script>` tags
+because I didn't know how to import stylesheets into CSS.
+This turned the styles into global styles
+because Svelte only scopes styles in `<style>` tags.
+My hotfix was to basically drop the contents of my css files
+into each component's styles.
+But I wasn't satisfied with how cluttered my component files were now,
+especially considering the sheer number of styles for posts.
+
+==== Plugging in Imports
+
+To properly import my stylesheets into component-scoped styles,
+I found the https://github.com/postcss/postcss-import[PostCSS import plugin]
+that inlines CSS @import rules,
+thus ensuring my imported stylesheets are scoped to the component.
+This discovery is all thanks to
+https://www.reddit.com/r/sveltejs/comments/134rgj1/scope_imported_stylesheet_to_component/[
+	Nkzar on Reddit
+] for discovering this solution.
+Implementing the plugin was as simple as adding the `postcss-import` package,
+adding it to my Svelte preprocessing configuration as demonstrated below,
+and then `@import`-ing away as I pleased.
+
+.svelte.config.js
+----
+import atImport from 'postcss-import';
+import { sveltePreprocess } from 'svelte-preprocess';
+
+const config = {
+	preprocess: [
+		sveltePreprocess({
+			postcss: {
+				plugins: [atImport()]
+			}
+		})
+		// vitePreprocess()
+	],
+	...
+}
+----
 
 ==== Styling {@html ...} Block
+
+The plugin fixed how I imported styles into other components,
+but my blog posts were still not styled properly.
+I realized that because I was converting the asciidocs to HTML
+and using the generated HTML in my component inside an `{@html}` block,
+the scoped styles were not being applied to them.
+This is because `{@html}` blocks are injected without any Svelte processing --
+which is why they are dangerous to have in code that takes user input,
+but luckily I am the only one who I have to worry about.
+The lack of Svelte processing means that these blocks need global styling.
+
+To avoid any side effects from styling post content,
+I first wrapped the block in its own class
+and then defined styles for classes within that wrapper class like this:
+
+.src/lib/components/BlogPost.svelte
+----
+<div class='blogpost'>{@html content}</div>
+----
+
+.src/lib/styles/blogpost.css
+----
+.blogpost { <1>
+	& b, <2>
+	strong {
+		font-weight: bold;
+	}
+
+	& abbr[title] {
+		cursor: help;
+		text-decoration: none;
+	}
+
+	....
+}
+----
+<1> This class is at the root level.
+<2> Every class within `.blogpost` needed the explicit nesting selector `&`
+in order to work properly.
+
+NOTE: Currently syntax highlighting in code blocks is not working,
+as I'm sure you can see.
+This solution is quite complex
+and I am considering writing an Asciidoctor plugin to fix this later on.
 
 == Deployment
 
