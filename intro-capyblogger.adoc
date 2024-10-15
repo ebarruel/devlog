@@ -597,4 +597,4 @@ Not just building Capyblogger itself (ignoring how barebones it is),
 but this somewhat comprehensive writeup about it as well.
 Here's to more fleshed out features and easier blog posts in the future.
 
-image::cheerybara.webp[a capybara holding up a glass of chocolate milk]
+image::cheerybara.webp[a capybara holding up a glass of chocolate milk, 276,271,align="center"]
