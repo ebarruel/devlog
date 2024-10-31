@@ -20,7 +20,7 @@ I had to use it for my senior project,
 and if I can help it,
 I never will again.
 
-Lucky for me, I ran into https://svelte.dev/[Svelte]
+Lucky for me, I ran into https://svelte.dev/[Svelte and SvelteKit]
 while setting out to build a federated novel reader.
 It's fast, it's straightforward,
 and it doesn't leave me one update behind
@@ -35,7 +35,7 @@ I ended up leaving it as-is
 because I didn't want to have to rip out the guts to get something so simple to work.
 ****
 
-Svelte feels very lightweight and is easy for me to follow.
+SvelteKit feels very lightweight and is easy for me to follow.
 I'm not a big fan of JSX,
 and Svelte's templating language just makes sense to me.
 Plus, the compiler makes me feel like I'm still connected to
