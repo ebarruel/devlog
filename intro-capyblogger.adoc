@@ -28,7 +28,7 @@ because it has decided there's not enough change
 in the virtual DOM to update the real one.
 
 ****
-In a project I had to add a keyboard to the screen,
+In that React project I had to add a keyboard to the screen,
 and the input text bar was always one character behind,
 no matter what I did to get the app to re-render.
 I ended up leaving it as-is
