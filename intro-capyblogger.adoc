@@ -117,8 +117,7 @@ it took me to get Capyblogger to the state it's in today.
 (Seems like a long time,
 but I had very little experience with web dev on my own when I started out.)
 
-Overall, I'm pretty satisfied with what I have.
-I think it's a good foundation for a personal project.
+Overall, I think it's a good foundation for a personal project.
 And I'm pretty proud of how I tackled the problems I encountered.
 
 === Problem {counter:dev}: Nix
