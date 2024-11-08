@@ -572,7 +572,7 @@ so I'd rather use it as inspiration and make something that fits my situation.
 
 Currently I'm eyeing https://shiki.style[Shiki] to do this.
 I know a lot of it might be marketing,
-but it feels more modern than highlight.js
+but it feels more modern than highlight.js.
 There is https://github.com/tani/asciidoctor-shiki[
 	one by Taniguchi Masaya
 ],
