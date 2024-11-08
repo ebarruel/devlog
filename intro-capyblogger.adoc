@@ -1,7 +1,7 @@
 = Capyblogger: Yet Another Static Site Generator
 Evangeline Barruel <empbarruel@gmail.com>
-2024-10-14
-:keywords: svelte, sveltekit, static site generator, asciidoctor, bun.js
+2024-11-07
+:keywords: svelte/kit, static site generator, asciidoctor, bun.js, capyblogger
 
 There are a billion and more static site generators --
 more specifically, static blog generators.
