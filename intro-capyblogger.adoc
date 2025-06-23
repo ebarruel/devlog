@@ -292,6 +292,7 @@ It's not optimal, but it works for now.
 With that, here's how I currently generate dynamic routes:
 
 .src/routes/blog/[slug]/+page.ts
+[, typescript]
 ----
 export const entries: EntryGenerator = async () => {
 	const version = await (await fetch(`${cdnMetaUrl}/resolved`))
@@ -397,6 +398,7 @@ adding it to my Svelte preprocessing configuration as demonstrated below,
 and then `@import`-ing away as I pleased.
 
 .svelte.config.js
+[, javascript]
 ----
 import atImport from 'postcss-import';
 import { sveltePreprocess } from 'svelte-preprocess';
@@ -431,11 +433,13 @@ I first wrapped the block in its own class
 and then defined styles for classes within that wrapper class like this:
 
 .src/lib/components/BlogPost.svelte
+[, html]
 ----
 <div class='blogpost'>{@html content}</div>
 ----
 
 .src/lib/styles/blogpost.css
+[, css]
 ----
 .blogpost { <1>
 	& b, <2>
